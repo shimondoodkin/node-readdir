@@ -20,7 +20,7 @@ using namespace v8;
                   String::New("Argument " #I " must be a function")));  \
   Local<Function> VAR = Local<Function>::Cast(args[I]);
 
-class DirReaderEio: ObjectWrap
+class ReadDir: ObjectWrap
 {
 private:
   //int m_count;
@@ -36,22 +36,22 @@ public:
 
     s_ct = Persistent<FunctionTemplate>::New(t);
     s_ct->InstanceTemplate()->SetInternalFieldCount(1);
-    s_ct->SetClassName(String::NewSymbol("DirReaderEio"));
+    s_ct->SetClassName(String::NewSymbol("ReadDir"));
 
     NODE_SET_PROTOTYPE_METHOD(s_ct, "open", Open);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "close", Close);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "read", Read);
 
-    target->Set(String::NewSymbol("DirReaderEio"),
+    target->Set(String::NewSymbol("ReadDir"),
                 s_ct->GetFunction());
   }
 
-  DirReaderEio()
+  ReadDir()
   {
 
   }
 
-  ~DirReaderEio()
+  ~ReadDir()
   {
    if(this->dir)
     closedir(this->dir);
@@ -60,13 +60,13 @@ public:
   static Handle<Value> New(const Arguments& args)
   {
     HandleScope scope;
-    DirReaderEio* hw = new DirReaderEio();
+    ReadDir* hw = new ReadDir();
     hw->Wrap(args.This());
     return args.This();
   }
 
   struct hello_baton_t {
-    DirReaderEio *hw;
+    ReadDir *hw;
     Persistent<String> path;
     //DIR *dir;
     Persistent<Function> cb;
@@ -82,7 +82,7 @@ public:
 
     REQ_FUN_ARG(1, cb);
 
-    DirReaderEio* hw = ObjectWrap::Unwrap<DirReaderEio>(args.This());
+    ReadDir* hw = ObjectWrap::Unwrap<ReadDir>(args.This());
 
     hello_baton_t *baton = new hello_baton_t();
     baton->hw = hw;
@@ -149,7 +149,7 @@ public:
     HandleScope scope;
     REQ_FUN_ARG(1, cb);
 
-    DirReaderEio* hw = ObjectWrap::Unwrap<DirReaderEio>(args.This());
+    ReadDir* hw = ObjectWrap::Unwrap<ReadDir>(args.This());
 
     hello_baton_t *baton = new hello_baton_t();
     baton->hw = hw;
@@ -238,7 +238,7 @@ public:
 
     REQ_FUN_ARG(0, cb);
 
-    DirReaderEio* hw = ObjectWrap::Unwrap<DirReaderEio>(args.This());
+    ReadDir* hw = ObjectWrap::Unwrap<ReadDir>(args.This());
 
     hello_baton_t *baton = new hello_baton_t();
     baton->hw = hw;
@@ -297,13 +297,13 @@ public:
 
 };
 
-Persistent<FunctionTemplate> DirReaderEio::s_ct;
+Persistent<FunctionTemplate> ReadDir::s_ct;
 
 extern "C" {
   static void init (Handle<Object> target)
   {
-    DirReaderEio::Init(target);
+    ReadDir::Init(target);
   }
 
-  NODE_MODULE(DirReader_eio, init);
+  NODE_MODULE(ReadDir, init);
 }
