@@ -25,41 +25,44 @@ class ReadDir: ObjectWrap
 private:
   //int m_count;
   DIR *dir;
+  bool isopen;
 public:
 
-  static Persistent<FunctionTemplate> s_ct;
+  //static Persistent<FunctionTemplate> s_ct;
   static void Init(Handle<Object> target)
   {
     HandleScope scope;
 
     Local<FunctionTemplate> t = FunctionTemplate::New(New);
 
-    s_ct = Persistent<FunctionTemplate>::New(t);
-    s_ct->InstanceTemplate()->SetInternalFieldCount(1);
-    s_ct->SetClassName(String::NewSymbol("ReadDir"));
+    //t->InstanceTemplate()->SetInternalFieldCount(1);
 
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "open", Open);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "close", Close);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "read", Read);
+    //s_ct = Persistent<FunctionTemplate>::New(t);
+    t->InstanceTemplate()->SetInternalFieldCount(1);
+    t->SetClassName(String::NewSymbol("ReadDir"));
 
-    target->Set(String::NewSymbol("ReadDir"),
-                s_ct->GetFunction());
+    NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
+    NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
+    NODE_SET_PROTOTYPE_METHOD(t, "read", Read);
+
+    target->Set(String::NewSymbol("ReadDir"),t->GetFunction());
   }
 
   ReadDir()
   {
-
+   this->isopen=false;
   }
 
   ~ReadDir()
   {
-   if(this->dir)
+   if(this->isopen)
     closedir(this->dir);
   }
 
   static Handle<Value> New(const Arguments& args)
   {
     HandleScope scope;
+
     ReadDir* hw = new ReadDir();
     hw->Wrap(args.This());
     return args.This();
@@ -104,6 +107,8 @@ public:
 
     //sleep(baton->sleep_for);
     String::Utf8Value path(baton->path->ToString());
+    //if(baton->hw->isopen)
+    // closedir(baton->hw->dir);
     DIR *dir = opendir(*path);
     baton->hw->dir=dir;
     //baton->hw->m_count += baton->increment_by;
@@ -117,8 +122,11 @@ public:
     hello_baton_t *baton = static_cast<hello_baton_t *>(req->data);
 
     Local<Value> argv[1];
-    if(baton->hw->dir)
+    if(baton->hw->dir!=NULL)
+    {
      argv[0] = Local<Value>::New(True());
+     baton->hw->isopen=true;
+    }
     else
      argv[0] = Local<Value>::New(False());
 
@@ -153,7 +161,8 @@ public:
 
     hello_baton_t *baton = new hello_baton_t();
     baton->hw = hw;
-
+    Local<Array> files = Array::New();
+    baton->files=files;
 //    if(args.Length()==2)
   //  {
      baton->num= args[0]->Int32Value();
@@ -174,6 +183,7 @@ public:
 
   static int EIO_Read(eio_req *req)
   {
+   HandleScope scope;
     hello_baton_t *baton = static_cast<hello_baton_t *>(req->data);
     DIR *dir = baton->hw->dir;
     int num=baton->num;
@@ -182,11 +192,13 @@ public:
     struct dirent *ent;
     baton->done=false;
     //HandleScope scope;
-    Local<Array> files = Array::New();
+    Local<Array> files = baton->files;
+    //Persistent<Array> files = Persistent<String>::New(lfiles);
     //Local<Array> files = Array::New();
-    while (true)
+    //Persistent<Array> files = Array::New();
+    while (baton->hw->isopen)
     {
-      if(i>num) break;
+      if(i>=num) break;
        ent = readdir(dir);
       if(!ent)
       {
@@ -199,7 +211,7 @@ public:
       files->Set(Integer::New(i), String::New(name));
       i++;
     }
-    baton->files=files;
+    //baton->files=files;
     // return scope.Close(files);
     return 0;
   }
@@ -259,7 +271,8 @@ public:
     hello_baton_t *baton = static_cast<hello_baton_t *>(req->data);
 
     //sleep(baton->sleep_for);
-    closedir(baton->hw->dir);
+    if(baton->hw->isopen)
+     closedir(baton->hw->dir);
 
     //baton->hw->m_count += baton->increment_by;
 
@@ -276,7 +289,7 @@ public:
      argv[0] = Local<Value>::New(True());
     else
      argv[0] = Local<Value>::New(False());
-
+    // Local<Value> arg(External::New(msg)); // good idea
     ev_unref(EV_DEFAULT_UC);
     baton->hw->Unref();
 
@@ -297,10 +310,10 @@ public:
 
 };
 
-Persistent<FunctionTemplate> ReadDir::s_ct;
+//Persistent<FunctionTemplate> ReadDir::s_ct;
 
 extern "C" {
-  static void init (Handle<Object> target)
+  void init (Handle<Object> target)
   {
     ReadDir::Init(target);
   }
